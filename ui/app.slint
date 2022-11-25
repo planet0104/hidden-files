@@ -1,0 +1,306 @@
+import { Button , VerticalBox, HorizontalBox} from "std-widgets.slint";
+
+ProgressBar := Rectangle {
+    property <int> progress;
+
+    Rectangle {
+        y: parent.height / 2 - 3px;
+        height: 20px;
+
+        border-radius: 10px;
+        background: #feffff;
+
+        Rectangle {
+            width: max(6px, progress * parent.width / 100);
+            border-radius: parent.border-radius;
+            background: #2493eb;
+        }
+    }
+}
+
+struct FileSpec := {
+    path: string,
+    name: string,
+    size: string,
+    sizemb: string,
+    extension: string,
+}
+
+App := Window {
+    title: "文件隐写小工具";
+    icon: @image-url("../images/favicon.png");
+    background: @linear-gradient(0deg, #f1f3ff 0%, #f1f3ff 100%);
+    height: 200px;
+    width: 310px;
+    
+    property <FileSpec> first_file: { path: "", name: "", size: "0", sizemb: "", extension: ""};
+    property <FileSpec> second_file: { path: "", name: "", size: "0", sizemb: "", extension: ""};
+    property <{message: string, show_cancel: bool }> dialog_status: {message: "", show_cancel: false };
+
+    // 正在弹出文件选择对话框
+    property <bool> waitting: false;
+
+    // 选择的第一个文件中，是否有附件
+    property <bool> has_attachment: false;
+    // 是否取消了操作，操作开始时，为false
+    property <bool> user_canceled: false;
+    property <bool> show_progress: false;
+    property <string> output_file: "";
+    property <int> current_progress: 0;
+    
+    callback save_file();
+    callback extract_file();
+    callback pick_file(int);
+    callback pick_file_calback(int, FileSpec);
+    callback cancel_job();
+    callback dialog_confirm(bool);
+    callback alert(string);
+    callback confirm(string);
+    
+    alert(message) => {
+        dialog-status.message = message;
+        dialog-status.show_cancel= false;
+        popup.show();
+    }
+    confirm(message) => {
+        dialog-status.message = message;
+        dialog-status.show_cancel= true;
+        popup.show();
+    }
+
+    if !show-progress : VerticalLayout {
+        padding-top: 10px;
+
+        HorizontalLayout{
+            padding: 10px;
+            height: 100px;
+            alignment: center;
+    
+            VerticalLayout{
+                
+                Rectangle{
+                    width: 100px;
+                    height: 100px;
+                    background: #ffffff;
+                    border-radius: 8px;
+                    drop-shadow-color: touch2.has-hover? #aaaaaa : #cccccc;
+                    drop-shadow-blur: 10px;
+                    touch2 := TouchArea {
+                        clicked => { 
+                            pick-file(0)
+                        }
+                    }
+
+                    if first-file.name != "" : VerticalLayout{
+                        alignment: center;
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                horizontal-alignment: center;
+                                width: 80px;
+                                overflow: elide;
+                                wrap: word-wrap;
+                                text: first-file.name;
+                                color: touch2.has-hover? #52d3f7 : #a09fa4;
+                            }
+                        }
+                        HorizontalLayout {
+                            alignment: center;
+                            padding-top: 10px;
+                            Text {
+                                horizontal-alignment: center;
+                                text: { "\{first-file.extension} \{first-file.sizemb}" };
+                                color: touch2.has-hover? #52d3f7 : #a09fa4;
+                            }
+                        }
+                    }
+                    if first-file.name == "" : VerticalLayout{
+                        HorizontalLayout {
+                            alignment: center;
+                            padding-top: 8px;
+
+                            Image {
+                                source: touch2.has-hover? @image-url("../images/icon_add_blue.png") : @image-url("../images/icon_add_gray.png");
+                                width: 40px;
+                            }
+                        }
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: "源文件";
+                                color: touch2.has-hover? #52d3f7 : #a09fa4;
+                            }
+                        }
+                    }
+                }
+            }
+            VerticalLayout{
+                padding-top: 20px;
+                padding-left: 10px;
+                padding-right: 10px;
+    
+                Image {
+                    source: @image-url("../images/link.png");
+                    width: 50px;
+                }
+            }
+            VerticalLayout{
+                Rectangle{
+                    width: 100px;
+                    height: 100px;
+                    background: #ffffff;
+                    border-radius: 8px;
+                    drop-shadow-color: touch3.has-hover? #aaaaaa : #cccccc;
+                    drop-shadow-blur: 10px;
+                    touch3 := TouchArea {
+                        clicked => { pick-file(2) }
+                    }
+
+                    if second-file.name != "" : VerticalLayout{
+                        alignment: center;
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                horizontal-alignment: center;
+                                width: 80px;
+                                overflow: elide;
+                                wrap: word-wrap;
+                                text: { second-file.name };
+                                color: touch2.has-hover? #52d3f7 : #a09fa4;
+                            }
+                        }
+                        HorizontalLayout {
+                            alignment: center;
+                            padding-top: 10px;
+                            Text {
+                                horizontal-alignment: center;
+                                text: { "\{second-file.extension} \{second-file.sizemb}" };
+                                color: touch2.has-hover? #52d3f7 : #a09fa4;
+                            }
+                        }
+                    }
+
+                    if second-file.name == "" : VerticalLayout{
+                        HorizontalLayout {
+                            alignment: center;
+                            padding-top: 8px;
+                            Image {
+                                source: touch3.has-hover? @image-url("../images/icon_add_blue.png") : @image-url("../images/icon_add_gray.png");
+                                width: 40px;
+                            }
+                        }
+                        HorizontalLayout {
+                            alignment: center;
+                            Text {
+                                text: "附加文件";
+                                color: touch3.has-hover? #52d3f7 : #a09fa4;
+                                font-weight: 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            padding-top: 10px;
+
+            if has-attachment : Image {
+                source: touch_dwnd.pressed ? @image-url("../images/icon_dwnd_shadow.png") : touch_dwnd.has-hover? @image-url("../images/icon_dwnd_shadow1.png") :  @image-url("../images/icon_dwnd_shadow2.png");
+                width: 50px;
+                touch_dwnd := TouchArea {
+                    clicked => { extract-file() }
+                }
+            }
+            
+            save := Image {
+                source: touch1.pressed ? @image-url("../images/icon_disk_shadow.png") : touch1.has-hover? @image-url("../images/icon_disk_shadow1.png") :  @image-url("../images/icon_disk_shadow2.png");
+                width: 50px;
+                touch1 := TouchArea {
+                    clicked => { save-file() }
+                }
+            }
+        }
+    }
+
+    if show-progress : VerticalLayout {
+        padding: 10px;
+        Text {
+            height: 35%;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            text: "正在保存 - \{current-progress}%";
+            color: #2493eb;
+        }
+        ProgressBar {
+            progress: current-progress;
+        }
+        Text {
+            height: 30%;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            text: output-file;
+            overflow: elide;
+            font-weight: 700;
+            color: #2493eb;
+        }
+        Button {
+            background: touch.pressed ? #177be1 : #1989fa;
+            text: "取消";
+            touch := TouchArea {
+               clicked => { cancel-job() } 
+            }
+        }
+    }
+
+    popup := PopupWindow {
+        width: root.width;
+        height: root.height;
+        Rectangle {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        TouchArea {
+            clicked => {
+                dialog_confirm(false)
+            }
+        }
+        Rectangle {
+            x: root.width/2-100px;
+            y: root.height/2-70px;
+            width: 200px;
+            height: 140px;
+            background: white;
+            drop-shadow-color: #aaa;
+            drop-shadow-blur: 20px;
+            border-radius: 5px;
+            VerticalBox {
+                alignment: center;
+                Text {
+                    width: 100%;
+                    height: 60px;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                    text: dialog-status.message;
+                    wrap: word-wrap;
+                    font-size: 14px;
+                    color: #a09fa4;
+                }
+                HorizontalBox {
+                    if dialog-status.show-cancel: Button {
+                        text: "取消";
+                        clicked => {
+                            dialog_confirm(false)
+                        }
+                    }
+                    Button {
+                        text: "确定";
+                        clicked => {
+                            dialog_confirm(true)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

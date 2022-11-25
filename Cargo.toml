@@ -1,0 +1,20 @@
+[package]
+name = "hidden-files"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+slint = "0.3.1"
+anyhow = "1"
+rfd = "0.10.0"
+byte-unit = "4.0.17"
+bincode = "2.0.0-rc.2"
+
+[build-dependencies]
+anyhow = "1"
+winres = "0.1.12"
+
+[profile.release]
+lto = true
+panic = 'abort'
+opt-level = 's'
